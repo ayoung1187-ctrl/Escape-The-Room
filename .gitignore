@@ -1,0 +1,9 @@
+.vs/
+Library/
+Temp/
+Logs/
+Build/
+Builds/
+UserSettings/
+obj/
+bin/
