@@ -386,9 +386,9 @@ MonoBehaviour:
   doubleClick: {fileID: 1101637915}
   mouseDelta: {fileID: 1369783672}
   mousePos: {fileID: 1429811694}
-  sensitivity: 50
-  momentumDropoff: 15
-  momentumThreshold: 1
+  sensitivity: 25
+  momentumDropoff: 5
+  momentumThreshold: 0.05
   camNode: {fileID: 962587900}
 --- !u!1 &410087039
 GameObject:
@@ -711,9 +711,13 @@ MonoBehaviour:
   yawLimits: {x: 0, y: 0}
   pitchLimits: {x: -90, y: 90}
   hasYawLimits: 0
-  connectedCams:
-  - {fileID: 1887715892}
-  - {fileID: 1747418125}
+  connections:
+  - targetNode: {fileID: 1887715892}
+    moveDuration: 3
+    rotationDelay: 0.5
+  - targetNode: {fileID: 1747418125}
+    moveDuration: 3
+    rotationDelay: 0.5
 --- !u!4 &962587901
 Transform:
   m_ObjectHideFlags: 0
@@ -951,9 +955,13 @@ MonoBehaviour:
   yawLimits: {x: 0, y: 0}
   pitchLimits: {x: -90, y: 90}
   hasYawLimits: 0
-  connectedCams:
-  - {fileID: 962587900}
-  - {fileID: 1887715892}
+  connections:
+  - targetNode: {fileID: 962587900}
+    moveDuration: 3
+    rotationDelay: 0.5
+  - targetNode: {fileID: 1887715892}
+    moveDuration: 3
+    rotationDelay: 0.5
 --- !u!4 &1747418126
 Transform:
   m_ObjectHideFlags: 0
@@ -1135,9 +1143,13 @@ MonoBehaviour:
   yawLimits: {x: 0, y: 0}
   pitchLimits: {x: -90, y: 90}
   hasYawLimits: 0
-  connectedCams:
-  - {fileID: 962587900}
-  - {fileID: 1747418125}
+  connections:
+  - targetNode: {fileID: 962587900}
+    moveDuration: 3
+    rotationDelay: 0.5
+  - targetNode: {fileID: 1747418125}
+    moveDuration: 3
+    rotationDelay: 0.5
 --- !u!4 &1887715893
 Transform:
   m_ObjectHideFlags: 0

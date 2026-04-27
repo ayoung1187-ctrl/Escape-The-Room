@@ -2,10 +2,9 @@
  * Purpose: Handles camera movement
  */
 
-using System.Runtime.CompilerServices;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Cursor = UnityEngine.Cursor;
 
 public class MainCamera : MonoBehaviour
 {
@@ -27,7 +26,7 @@ public class MainCamera : MonoBehaviour
     [Header("Look Sensitivity & Momentum")]
     [SerializeField] private float sensitivity = 1000f;
     [SerializeField] private float momentumDropoff = 0.1f; // The factor by which momentum decreases
-    [SerializeField] private float momentumThreshold = 1.0f;
+    [SerializeField] private float momentumThreshold = 1.0f; // The limit value for momentum to be set to 0
 
     [Header("Camera Node Script")]
     [SerializeField] private CameraNode camNode;
@@ -52,6 +51,21 @@ public class MainCamera : MonoBehaviour
     }
 
     private CameraState state = CameraState.Idle;
+
+    // New variables 4/25
+    private Vector3 startMovePos; // just gonna be camSpot
+    private Quaternion startMoveRot; // Gonna be the rotation of the cammera
+
+    private Vector3 endMovePos;
+    private Quaternion endMoveRot;
+
+    private float elapsedTime = 0f;
+    private float progress = 0f;
+
+    private CameraNode targetNode;
+
+    private CameraNode.CamConnections foundConnection = default;
+    bool isConnected = false;
 
     private void Awake()
     {
@@ -84,6 +98,10 @@ public class MainCamera : MonoBehaviour
             Debug.LogError("Camera spot is not assigned.");
             return;
         }
+        if (isConnected && foundConnection.moveDuration <= 0f)
+        {
+            Debug.LogError("Invalid Move Duration value. Must be greater than 0.");
+        }
 
         // Get the collider for the camera node that is initially visited and disable it to prevent raycast interference
         currentNodeCollider = camNode.GetComponent<Collider>();
@@ -101,6 +119,48 @@ public class MainCamera : MonoBehaviour
 
     void Update()
     {
+        if (state == CameraState.Moving)
+        {
+            elapsedTime += Time.deltaTime;
+
+            float t = Mathf.Clamp01(elapsedTime / foundConnection.moveDuration);
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+            mainCam.transform.position = Vector3.Lerp(startMovePos, endMovePos, smoothT);
+            if (elapsedTime >= foundConnection.rotationDelay)
+            {
+                float rotT = Mathf.Clamp01((elapsedTime - foundConnection.rotationDelay) / (foundConnection.moveDuration - foundConnection.rotationDelay));
+                float smoothRotT = Mathf.SmoothStep(0f, 1f, rotT);
+                mainCam.transform.rotation = Quaternion.Slerp(startMoveRot, endMoveRot, smoothRotT);
+            }
+            
+            progress = elapsedTime / foundConnection.moveDuration;
+            if (progress >= 1f)
+            {
+                mainCam.transform.position = endMovePos;
+                mainCam.transform.rotation = endMoveRot;
+
+                momentum = Vector2.zero;
+
+                yaw = endMoveRot.eulerAngles.y;
+                pitch = endMoveRot.eulerAngles.x;
+
+                camNode = targetNode;
+
+                camSpot = camNode.transform;
+
+                elapsedTime = 0;
+
+                Cursor.visible = true;
+
+                foundConnection = default;
+                isConnected = false;
+
+                state = CameraState.Idle;
+            }
+            return;
+        }
+
         HandleInput();
 
         // Clamp the pitch and yaw so that it can't exceed the limits
@@ -131,7 +191,7 @@ public class MainCamera : MonoBehaviour
             if (state != CameraState.Dragging)
             {
                 Cursor.lockState = CursorLockMode.Locked;
-                //Cursor.visible = false;
+                Cursor.visible = true;
             }
             state = CameraState.Dragging;
             inputDelta = mouseDeltaIA.ReadValue<Vector2>();
@@ -184,29 +244,38 @@ public class MainCamera : MonoBehaviour
         Debug.Log("Hit: " + hitCollider.name);
 
         // Get the collider's CameraNode script.
-        CameraNode targetNode = hitCollider.GetComponent<CameraNode>();
+        targetNode = hitCollider.GetComponent<CameraNode>();
 
-        if (camNode == null) // If it doesn't exist, send an error log as that means a camera node is missing this script.
+        if (targetNode == null) // If it doesn't exist, send an error log as that means a camera node is missing this script.
         {
             Debug.LogError("No Camera Node found");
             return;
         }
-        if (camNode.connectedCams != null && camNode.connectedCams.Count > 0)
+
+        foundConnection = default;
+        isConnected = false;
+
+        foreach (var connection in camNode.connections)
         {
-            if (!camNode.connectedCams.Contains(targetNode))
+            if (connection.targetNode == targetNode)
             {
-                Debug.Log("Target node is not connected to the current node");
-                state = CameraState.Idle;
-                return;
+                foundConnection = connection;
+                isConnected = true;
+                break;
             }
+        }
+
+        if (!isConnected)
+        {
+            Debug.Log("Target node is not connected to the current node");
+            state = CameraState.Idle;
+            return;
         }
 
         if (currentNodeCollider != null)
         {
             currentNodeCollider.enabled = true;
         }
-
-        camNode = targetNode;
 
         MoveCameraToHitNode(hitCollider);
     }
@@ -220,8 +289,16 @@ public class MainCamera : MonoBehaviour
     {
         state = CameraState.Moving;
 
-        // Change the camera's position to the camera node's transform
-        camSpot = camNode.transform;
+        momentum = Vector2.zero;
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = false;
+
+        startMovePos = camSpot.position;
+        startMoveRot = mainCam.transform.rotation;
+
+        endMovePos = targetNode.getPosition();
+        endMoveRot = targetNode.transform.rotation;
 
         // Re-set the current node collider to what was hit and disable it to prevent raycast interference
         currentNodeCollider = hitColl;
@@ -229,11 +306,6 @@ public class MainCamera : MonoBehaviour
         {
             currentNodeCollider.enabled = false;
         }
-
-        // Change camera rotation to the camera node's default rotation (this may be changed)
-        yaw = camSpot.rotation.eulerAngles.y;
-        pitch = camSpot.rotation.eulerAngles.x;
-        momentum = Vector2.zero;
     }
 
     /*

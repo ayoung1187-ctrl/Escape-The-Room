@@ -3,12 +3,20 @@ using UnityEngine;
 
 public class CameraNode : MonoBehaviour
 {
+    [System.Serializable]
+    public struct CamConnections
+    {
+        public CameraNode targetNode;
+        public float moveDuration;
+        public float rotationDelay;
+    }
+
     public Vector2 yawLimits;
     public Vector2 pitchLimits;
 
     public bool hasYawLimits;
 
-    public List<CameraNode> connectedCams;
+    public List<CamConnections> connections;
 
     public Collider GetClickLocationCollider() { return GetComponent<Collider>(); }
 
